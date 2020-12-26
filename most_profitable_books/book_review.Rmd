@@ -1,0 +1,143 @@
+---
+title: "Creating Efficient Data Analysis Workflow"
+author: "Jonathan"
+date: "12/24/2020"
+output: html_document
+---
+
+## Introduction:
+We will be acting as a data analyst for a company that sells books for learning programming.
+We have been provided a list of books, their price, and customer ratings from online reviews.
+Based on these information, our goal is to analyze and determine which 3 books have the highest potential to generate the most amount profit.
+  We will assume that the marginal cost to produce a book is the same for all books.
+
+## Code:
+``` {r part1}
+# read and check dataset basic informations
+library(readr)
+library(tidyverse)
+book_reviews <- read_csv("book_reviews.csv")
+dim(book_reviews)
+names <- colnames(book_reviews)
+# checks type of data in each column
+for (name in names) {
+  print(typeof(book_reviews[[name]]))
+}
+glimpse(book_reviews)
+
+```
+
+``` {r part2}
+# filters so no NA reviews are shown
+indices <- c(1:length(names))
+for (i in indices) {
+  complete <- book_reviews %>% filter(!is.na(book_reviews[i]))
+  if (nrow(complete) < nrow(book_reviews)) {
+    complete_book_reviews <- complete
+  }
+}
+complete_book_reviews
+# complete dataset created
+```
+
+```{r part3}
+# organize state column so all states are acronyms
+states <- c()
+for (s in complete_book_reviews$state) {
+  if (s == "Texas") {
+    states <- c(states, "TX")
+  } else if (s == "California") {
+    states <- c(states, "CA")
+  } else if (s == "Florida") {
+    states <- c(states, "FL")
+  } else if (s == "New York") {
+    states <- c(states, "NY")
+  } else {
+    states <- c(states, s)
+  }
+}
+complete_book_reviews <- complete_book_reviews %>% mutate(state = states)
+complete_book_reviews
+```
+
+``` {r part4}
+# Scores the reviews of books from 1-5
+ratings <- c("Poor", "Fair", "Good", "Great", "Excellent")
+new_reviews <- c()
+for (rev in complete_book_reviews$review) {
+  review <- which(ratings %in% rev)
+  new_reviews <- c(new_reviews, review)
+}
+# if score is 4+ score is considered high
+scored_book_reviews <- complete_book_reviews %>% mutate(review_num = new_reviews, is_high_review = if_else(review_num >= 4, T, F))
+scored_book_reviews
+```
+```{r part5}
+# Determine the most profitable books
+# For this research, we will assume the Marginal Cost to produce each book is the same,
+#   and profit is calculated by price*rating (as Q-sold is not given).
+#   This is inferred as a higher review correlates with more quantities demanded
+## Hence, we will infer that a higher price and rating will is correlated to more profit
+
+# generates a list of all different review scores
+profits <- c()
+counter <- c(1:nrow(scored_book_reviews))
+for (index in counter) {
+  profit <- scored_book_reviews$price[index] * scored_book_reviews$review_num[index]
+  profits <- c(profits, profit)
+}
+profit_book_reviews <- scored_book_reviews %>% mutate(profit_score = profits) %>% arrange(desc(profit_score))
+
+book_rev <- c()
+duplicates <- duplicated(profit_book_reviews$profit_score)
+for(i in counter) {
+  book <- c(profit_book_reviews$book[i], profit_book_reviews$price[i], profit_book_reviews$is_high_review[i], profit_book_reviews$profit_score[i])
+  if (!duplicates[i]) {
+    book_rev <- c(book_rev, book)
+  }
+}
+
+book_rev_list <- matrix(book_rev, ncol = 4, byrow = T)
+colnames(book_rev_list) <- c("Book","Price","High_review","Profit_score")
+rownames(book_rev_list) <- c(1:nrow(book_rev_list))
+book_rev_list
+
+# Determine the top 3 most profitable books
+profitable_books <- c()
+duplicates <- duplicated(profit_book_reviews$book)
+for (i in counter) {
+  book <- profit_book_reviews$book[i]
+  if (!duplicates[i] ) {
+    profitable_books <- c(profitable_books, book)
+    if (length(profitable_books) >= 3) {
+      break
+    }
+  }
+}
+profitable_books
+
+```
+
+
+## Process and Limitations
+1) I had to assign a review score to the ratings given by the critiques for each book
+2) Some books were not assigned a rating, hence those books were removed from this study
+3) Some books have received different ratings in different states
+    For this study, we will only adopt the highest profitable score for each book
+4) The profitable score is calculated by multiplying review and price
+    This is done as a higher review correlates to a higher quantity of demand, which correlates to how revenue is found
+
+## Conclusions
+To summarize, the 3 most profitable books we have found in this list are:
+  1. "Secrets Of R For Advanced Students"
+  2. "Fundamentals of R For Beginners"   
+  3. "Top 10 Mistakes R Beginners Make" 
+Due to how we have calculated our profit score, my results are solely used to determine the books that can bring the highest amount of profit and not how much profit can be brought to the company.
+This study also does not consider state specific demands and reviews. Only the best and most ideal situations are being considered here.
+Some books are also removed from this list due to the missing reviews, hence this conclusion is drawn only from books that were given reviews prior.
+
+
+
+
+
+
