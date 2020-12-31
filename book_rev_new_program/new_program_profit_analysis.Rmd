@@ -1,0 +1,136 @@
+---
+title: "new_book_review_program_analysis"
+author: "Jonathan Kang"
+date: "12/29/2020"
+output: html_document
+---
+
+## Introduction:
+  As an analyst for a book company, our goal is to analyze a new dataset and provide insights on whether or not the new program given by the company was successful at increasing sales and improving review quality. Dataset: https://data.world/dataquest/book-sales-data#
+  Libraries imported: tidyverwse, readr, stringr, lubridate
+
+## Questions:
+  Was the company's new program successful at increasing sales and improving review quality?
+  
+## Code:
+```{r part1}
+# import and read file
+library(tidyverse, readr)
+book_sales <- read_csv("sales2019.csv")
+glimpse(book_sales)
+
+nrow_original <- nrow(book_sales)
+
+index <- c(1:length(book_sales))
+
+# eliminates all NA entries of dataset
+for (i in index) {
+  comp <- book_sales %>% filter(!is.na(book_sales[i]))
+  if (nrow(comp) < nrow(book_sales)) {
+    complete_book_sales <- comp
+  }
+}
+
+# eliminate NA entries in user_submitted_review
+book_sales <- book_sales %>% group_by(user_submitted_review) %>% filter(!is.na(user_submitted_review))
+
+rows_deleted <- nrow_original - nrow(book_sales)
+
+book_sales
+
+```
+
+```{r part2}
+# find average and then update the NA values
+avg_books_purchased <- mean(unlist(complete_book_sales$total_purchased))
+
+cleaned_book_sales <- book_sales %>% mutate(total_purchased_updated = if_else(!is.na(total_purchased), total_purchased, avg_books_purchased) )
+
+cleaned_book_sales
+
+```
+
+``` {r part3}
+# determine the unique review comments
+duplicate <- duplicated(book_sales$user_submitted_review)
+counter <- c(1:length(duplicate))
+reviews <- c()
+for (i in counter) {
+  if (!duplicate[i]) {
+    reviews <- c(reviews, book_sales$user_submitted_review[i])
+  }
+}
+
+# filter the reviews to understand which is positive, negative, or neutral
+review_filter <- function(review) {
+  return(
+    case_when(
+      str_detect(review, "Awesome") ~ "Positive",
+      str_detect(review, "Never read a better") ~ "Positive",
+      str_detect(review, "learned a lot") ~ "Positive",
+      str_detect(review, "not needed") ~ "Negative",
+      str_detect(review, "Hate") ~ "Negative",
+      str_detect(review, "other books were better") ~ "Negative",
+      str_detect(review, "not rec") ~ "Negative",
+      TRUE ~ "Neutral"
+    )
+  )
+}
+
+# translate the reviews into determining if reviews were positive or not
+cleaned_book_sales <- cleaned_book_sales %>% mutate(
+  review_stance = review_filter(user_submitted_review))
+cleaned_book_sales
+
+```
+``` {r part4}
+# lubridate the dates mm-dd-yy
+library(lubridate)
+lub_date <- function(date) {
+  splitted <- str_split(date, "/")
+  lubbed <- mdy(date)
+  return(lubbed)
+}
+
+# sort and determine if pre program or after the program has been implemented
+cleaned_book_sales <- cleaned_book_sales %>% mutate(lubri_dates = lub_date(date), pre_program = if_else(lubri_dates < ymd("19/7/1"), T, F)) %>% arrange(lubri_dates)
+
+# find information
+pre <- cleaned_book_sales %>% filter(pre_program == F)
+post <- cleaned_book_sales %>% filter(pre_program == T)
+
+program_results <- cleaned_book_sales %>% group_by(pre_program) %>% summarise(mean(total_purchased_updated))
+
+program_results
+```
+# Checkpoint
+  Up to this point of our analysis, we lack the evidence to conclude that the program has effectively increased the amount of books being purchased. 
+
+``` {r part5}
+results_by_type <- cleaned_book_sales %>% group_by(pre_program, customer_type) %>% summarise(mean(total_purchased_updated))
+results_by_type
+```
+# Checkpoint
+  Up to this point of our analysis, we lack the evidence to conclude that the program has effectively increased the amount of books being purchased for either customer types. The new program does not have a significant impact on the amount of purchased books.
+
+```{r part 6}
+results_by_review <- cleaned_book_sales %>% group_by(review_stance, pre_program) %>% summarise((review_stance))
+
+count(results_by_review)
+```
+
+# Checkpoint
+  Up to this point of our analysis, we lack the evidence to conclude that the program has effectively increased the amount of books being purchased for either customer types.
+  From our observation, we can see that there was a decrease in the amount of negative and positive reviews while there has been an increase in the amont of neutral reviews.
+
+
+
+
+
+
+
+
+
+
+
+
