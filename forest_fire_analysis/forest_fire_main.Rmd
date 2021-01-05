@@ -1,0 +1,126 @@
+---
+title: "Forest Fire Analysis"
+author: "Jonathan"
+date: "1/4/2021"
+output: html_document
+---
+
+# Introduction
+We will use a dataset on Portugal's forest fires to analyze the different patterns that may lead to or cause forest fires and attempt to predict the occurence of forest fires in Portugal using a variety of modeling techniques.
+  For this specific project, I will be focusing on producing the visualizations of the results.
+  Dataset Source: https://archive.ics.uci.edu/ml/machine-learning-databases/forest-fires/
+
+# Dataset Keys:
+X: X-axis spatial coordinate within the Montesinho park map: 1 to 9
+Y: Y-axis spatial coordinate within the Montesinho park map: 2 to 9
+month: Month of the year: 'jan' to 'dec'
+day: Day of the week: 'mon' to 'sun'
+FFMC: Fine Fuel Moisture Code index from the FWI system: 18.7 to 96.20
+DMC: Duff Moisture Code index from the FWI system: 1.1 to 291.3
+DC: Drought Code index from the FWI system: 7.9 to 860.6
+ISI: Initial Spread Index from the FWI system: 0.0 to 56.10
+temp: Temperature in Celsius degrees: 2.2 to 33.30
+RH: Relative humidity in percentage: 15.0 to 100
+wind: Wind speed in km/h: 0.40 to 9.40
+rain: Outside rain in mm/m2 : 0.0 to 6.4
+area: The burned area of the forest (in ha): 0.00 to 1090.84
+
+## Code:
+# Read data tables
+``` {r part1}
+# load packages and read csv of dataset
+library(tidyverse)
+forest_fires <- read_csv("forestfires.csv")
+glimpse(forest_fires)
+```
+
+# Data Processing
+``` {r part2}
+# change month and day to numerical values for easy organization later on
+dayToNumber <- function(days) {
+  result <- c()
+  for (day in days) {
+    number <- switch(day, "sun" = 7L, "mon" = 1L, "tue" = 2L, "wed" = 3L,
+                     "thu" = 4L, "fri" = 5L, "sat" = 6L, -1L)
+    result <- c(result, number)
+  }
+  return(result)
+}
+
+monthToNumber <- function(months) {
+  result <- c()
+  for (month in months) {
+    number <- switch(month, "jan" = 1L, "feb" = 2L, "mar" = 3L, "apr" = 4L,
+                     "may" = 5L,"jun" = 6L, "jul" = 7L, "aug" = 8L, "sep" = 9L,
+                     "oct" = 10L, "nov" = 11L, "dec" = 12L, -1L)
+    result <- c(result, number)
+  }
+  return(result)
+}
+
+forest_fires <- forest_fires %>% mutate(
+  month_number = monthToNumber(month),
+  day_number = dayToNumber(day))
+
+#forest_fires %>% pull(dayNumber) %>% unique
+```
+
+# Month Levels
+``` {r part3}
+# Clean and organize the data, plot most frequent cases on graph
+months <- c("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+forest_fires_by_month <- forest_fires %>% group_by(month_number) %>% summarise(cases = n())
+forest_fires_by_month %>% ggplot(aes(x = month_number, y = cases)) + geom_col() + scale_x_discrete(limits = months) + labs(title = "Cases in Each Month", x = "Month", y = "Cases")
+
+days <- c("Mon", "Tue", "Wed", "Thu", "Fri", "Sat","Sun")
+forest_fires_by_day <- forest_fires %>% group_by(day_number) %>% summarise(cases = n())
+forest_fires_by_day %>% ggplot(aes(x = day_number, y = cases)) + geom_col() + labs(title = "Cases in Each Day", x = "Day of the Week", y = "Cases") + scale_x_discrete(limits = days)
+```
+
+# Checkpoint
+From our monthly cases chart, we will notice that the most forest fire cases occur in August and September along with March being relatively common, whereas months January, May, and November have the least amount of forest fires happening.
+  If we look at the figure showing the amount of cases in each day, we will notice how the weekend days (Friday, Saturday, Sunday) has the most amount of forest fire cases, whereas the weekdays have lesser cases.
+  
+
+# Plotting variables against time
+``` {r}
+# convert original rom wide to long format, find patterns in months
+forest_fires_long <- forest_fires %>% pivot_longer(
+  cols = c(FFMC, DMC, DC, ISI, temp, RH, wind, rain),
+  names_to = "column",
+  values_to = "values"
+) %>% arrange(month_number) 
+
+
+forest_fires_long %>% ggplot(aes(x = column, y = values)) + geom_boxplot() + facet_wrap(vars(month_number), scales = "free_y") + labs(
+  title = "Changes of Variables over months", x = "Months", y = "Values")
+
+```
+
+# Checkpoint:
+  For August and September, there were allarming larger values of FFMC than any other month.
+
+# Examine Forest Fire's Serevity
+``` {r, fig.width = 5}
+
+forest_fires_long %>% ggplot(aes(x = values, y = area)) + geom_point() + facet_wrap(vars(column), scales = "free_x") + labs(
+  title = "Relationship between different values and size of affected area", x = "Value of Column", y = "Area Affected")
+
+```
+
+# Examine the plots again without outlying areas
+``` {r, fig.width = 5}
+forest_fires_long %>% filter(area < 250) %>% ggplot(aes(x = values, y = area)) + geom_point() + facet_wrap(vars(column), scales = "free_x") + labs(
+  title = "Relationship between different values and size of affected area", x = "Value of Column", y = "Area Affected (hect)")
+```
+
+# Findings and Conclusions
+We can see that there are relatively normal relationships between size of area and values for DMC, wind, temperature, and ISI (ignoring outliers). RH exhibits a positively skewed graph whereas DC and FFMC exhibits a negatively skewed diagram. 
+
+
+
+
+
+
+
+
